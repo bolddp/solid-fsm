@@ -3,7 +3,7 @@ A strongly typed Promise based Finite State Machine with a simple, fluent API.
 
 ## Installation
 
-    $ npm install solid-fsm
+TBD : Publish to NPM
 
 ## Usage
 
