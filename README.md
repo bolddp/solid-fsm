@@ -123,7 +123,8 @@ await t.start();
 await t.trigger(Trigger.IncomingCall);
 // State -> Ringing
 await t.trigger(Trigger.PickedUpPhone);
-// Start -> Conversation
+// State -> Conversation
+
 // Invalid triggers are NOT OK
 await t.trigger(Trigger.IncomingCall);
 // Error: Trigger IncomingCall is not valid on state Conversation
