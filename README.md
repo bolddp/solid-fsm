@@ -7,6 +7,8 @@ TBD : Publish to NPM
 
 ## Usage
 
+An FSM can provide a nice solution when building an application whose logic flow depends on well defined events (triggers). The states also become self-sufficient since they have no idea about the other states, they can themselves only signal progress through triggers.
+
 ### Let's use an old-style telephone as an example. Its possible states are as follows:
 * Idle - telephone is not in use
 * Dialling - the user has picked up the handset and is dialling a number
