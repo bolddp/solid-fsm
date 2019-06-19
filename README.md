@@ -129,3 +129,38 @@ await t.trigger(Trigger.UserHungUp);
 // State -> Idle
 ```
 
+### Handling invalid triggers
+If you don't want an error to be thrown if an invalid trigger is fired, you can provide your own custom handler.
+
+```ts
+this
+  .withInvalidTriggerListener(async (state: State, trigger: Trigger) => {
+    console.log(`Invalid trigger on state ${state}: ${trigger}`);
+  })
+  .state(State.Idle).handledBy(new IdleHandler())
+  ...
+
+```
+
+### Tracking transitions
+Transitions, when the state machine exits one state and enters the next, can be convenient to track and log. You can provide your own handler for that, too.
+```ts
+this
+  .withTransitionListener(async (sourceState: State, targetState: State) => {
+    console.log(`Transitioning: ${sourceState} -> ${targetState}`);
+  })
+  ...
+
+```
+
+### Execute code on trigger
+You can also configure a state to execute code when a specific trigger is fired on a state. The state machine will execute the code but stay in the same state. Let's extend the telephone to handle a second incoming call by playing
+a pre-recorded message.
+```ts
+this.state(State.Conversation).handledBy(new ConversationHandler())
+  .on(Trigger.UserHungUp).goesTo(State.Idle)
+  .on(Trigger.OtherPartHungUp).goesTo(State.LineDisconnected)
+  .on(Trigger.IncomingCall).execute(async ctx => {
+    this.messagePlayer.play('in_another_call.mp3');
+  });
+```

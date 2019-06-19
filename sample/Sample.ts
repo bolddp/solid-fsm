@@ -47,7 +47,14 @@ class TelephoneSm extends StateMachine<State, Trigger, Context> {
   }
 
   configure() {
-    this.state(State.Idle).handledBy(new IdleHandler())
+    this
+      .withInvalidTriggerListener(async (state: State, trigger: Trigger) => {
+        console.log(`Invalid trigger on state ${state}: ${trigger}`);
+      })
+      .withTransitionListener(async (sourceState: State, targetState: State) => {
+        console.log(`Transitioning: ${sourceState} -> ${targetState}`);
+      })
+      .state(State.Idle).handledBy(new IdleHandler())
       .isInitialState()
       .on(Trigger.PickedUpPhone).goesTo(State.Dialling)
       .on(Trigger.IncomingCall).goesTo(State.Ringing);
@@ -70,7 +77,10 @@ class TelephoneSm extends StateMachine<State, Trigger, Context> {
 
     this.state(State.Conversation).handledBy(new ConversationHandler())
       .on(Trigger.UserHungUp).goesTo(State.Idle)
-      .on(Trigger.OtherPartHungUp).goesTo(State.LineDisconnected);
+      .on(Trigger.OtherPartHungUp).goesTo(State.LineDisconnected)
+      .on(Trigger.IncomingCall).execute(async ctx => {
+        this.messagePlayer.play('in_another_call.mp3');
+      });
 
     this.state(State.LineDisconnected).handledBy(new LineDisconnected())
       .on(Trigger.UserHungUp).goesTo(State.Idle);
