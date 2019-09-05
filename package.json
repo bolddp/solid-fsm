@@ -1,12 +1,13 @@
 {
   "name": "solid-fsm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Finite State Machine with a simple fluent API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "_mocha -r ts-node/register --recursive test/**/*Test.ts",
-    "coverage": "nyc mocha -r ts-node/register -r source-map-support/register --recursive test/**/*Test.ts"
+    "coverage": "nyc mocha -r ts-node/register -r source-map-support/register --recursive test/**/*Test.ts",
+    "npm:publish": "rm ./dist -rf && node ./node_modules/typescript/bin/tsc --sourcemap false && npm publish"
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,10 @@
   "bugs": {
     "url": "https://github.com/bolddp/solid-fsm/issues"
   },
+  "files": [
+    "/dist",
+    "README.md"
+  ],
   "homepage": "https://github.com/bolddp/solid-fsm#readme",
   "devDependencies": {
     "@types/chai": "^4.1.7",
