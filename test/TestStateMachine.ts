@@ -8,4 +8,8 @@ export class TestStateMachine extends StateMachine<TestState, TestTrigger, TestC
     super(context || new TestContext());
     config(this);
   }
+
+  context() {
+    return this._context;
+  }
 }

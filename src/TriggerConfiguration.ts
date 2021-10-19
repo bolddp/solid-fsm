@@ -10,15 +10,15 @@ import { StateMachineContext } from "./StateMachineContext";
  * triggers and thereby determining the state that it should transition to.
  */
 export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachineContext<TState>> {
-  stateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
-  targetStateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
-  guard?: (context: TContext) => boolean;
-  func: (context: TContext) => Promise<void>;
+  private _stateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
+  _targetStateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
+  _guard?: (context: TContext) => boolean;
+  _func: (context: TContext) => Promise<void>;
 
   constructor(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>,
     guard?: (context: TContext) => boolean) {
-    this.stateConfiguration = stateConfiguration;
-    this.guard = guard;
+    this._stateConfiguration = stateConfiguration;
+    this._guard = guard;
   }
 
   /**
@@ -26,11 +26,11 @@ export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachin
    * @param state the state that this trigger configuration should use as target
    */
   goesTo(state: TState): StateConfiguration<TState, TTrigger, TContext> {
-    if (this.func) {
+    if (this._func) {
       throw new Error('A trigger cannot have both a target state and code that should be executed');
     }
-    this.targetStateConfiguration = this.stateConfiguration.stateMachine.state(state);
-    return this.stateConfiguration;
+    this._targetStateConfiguration = this._stateConfiguration._stateMachine.state(state);
+    return this._stateConfiguration;
   }
 
   /**
@@ -39,10 +39,10 @@ export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachin
    * @param func the function that should be executed when a trigger is fired on the current configured state
    */
   execute(func: (context: TContext) => Promise<void>): StateConfiguration<TState, TTrigger, TContext> {
-    if (this.targetStateConfiguration) {
+    if (this._targetStateConfiguration) {
       throw new Error('A trigger cannot have both a target state and code that should be executed');
     }
-    this.func = func;
-    return this.stateConfiguration;
+    this._func = func;
+    return this._stateConfiguration;
   }
 }

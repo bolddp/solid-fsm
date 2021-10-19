@@ -8,41 +8,41 @@ import { StateMachineContext } from "./StateMachineContext";
  * to provide a fluent API when configuring the state machine, e.g. {@link #on} and {@link #handledBy}.
  */
 export class StateConfiguration<TState, TTrigger, TContext extends StateMachineContext<TState>> {
-  stateMachine: StateMachine<TState, TTrigger, TContext>;
-  state: TState;
-  unguardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>> = new Map();
-  guardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>[]> = new Map();
-  handler: StateHandler<TTrigger, TContext>;
+  _stateMachine: StateMachine<TState, TTrigger, TContext>;
+  _state: TState;
+  _unguardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>> = new Map();
+  _guardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>[]> = new Map();
+  _handler: StateHandler<TTrigger, TContext>;
 
   constructor(stateMachine: StateMachine<TState, TTrigger, TContext>, state: TState) {
-    this.stateMachine = stateMachine;
-    this.state = state;
+    this._stateMachine = stateMachine;
+    this._state = state;
   }
 
   private handleUnguarded(trigger: TTrigger): TriggerConfiguration<TState, TTrigger, TContext> {
     // An unguarded trigger cannot also be present with a guard
-    if (this.guardedTriggerConfigurations.get(trigger)) {
+    if (this._guardedTriggerConfigurations.get(trigger)) {
       throw new Error(`Trigger ${trigger} is already used with a guard, cannot also be used unguarded`);
     }
-    let config = this.unguardedTriggerConfigurations.get(trigger);
+    let config = this._unguardedTriggerConfigurations.get(trigger);
     if (!config) {
       config = new TriggerConfiguration(this);
-      this.unguardedTriggerConfigurations.set(trigger, config);
+      this._unguardedTriggerConfigurations.set(trigger, config);
     }
     return config;
   }
 
   private handleGuarded(trigger: TTrigger, guard: (context: TContext) => boolean): TriggerConfiguration<TState, TTrigger, TContext> {
     // A guarded trigger cannot also be present without a guard
-    if (this.unguardedTriggerConfigurations.get(trigger)) {
+    if (this._unguardedTriggerConfigurations.get(trigger)) {
       throw new Error(`Trigger ${trigger} is already used without a guard, cannot also be used guarded`);
     }
 
     // Get or create the list of guarded trigger configurations for this trigger
-    let config = this.guardedTriggerConfigurations.get(trigger);
+    let config = this._guardedTriggerConfigurations.get(trigger);
     if (!config) {
       config = [];
-      this.guardedTriggerConfigurations.set(trigger, config);
+      this._guardedTriggerConfigurations.set(trigger, config);
     }
     const triggerConfiguration = new TriggerConfiguration(this, guard);
     config.push(triggerConfiguration);
@@ -50,12 +50,12 @@ export class StateConfiguration<TState, TTrigger, TContext extends StateMachineC
   }
 
   isInitialState(): StateConfiguration<TState, TTrigger, TContext> {
-    this.stateMachine.initialState = this.state;
+    this._stateMachine._initialState = this._state;
     return this;
   }
 
   handledBy(handler: StateHandler<TTrigger, TContext>): StateConfiguration<TState, TTrigger, TContext> {
-    this.handler = handler;
+    this._handler = handler;
     return this;
   }
 
@@ -69,8 +69,8 @@ export class StateConfiguration<TState, TTrigger, TContext extends StateMachineC
 
   getValidTriggers(): TTrigger[] {
     const triggerSet = new Set<TTrigger>();
-    Array.from(this.guardedTriggerConfigurations.keys()).forEach(t => triggerSet.add(t));
-    Array.from(this.unguardedTriggerConfigurations.keys()).forEach(t => triggerSet.add(t));
+    Array.from(this._guardedTriggerConfigurations.keys()).forEach(t => triggerSet.add(t));
+    Array.from(this._unguardedTriggerConfigurations.keys()).forEach(t => triggerSet.add(t));
     return Array.from(triggerSet.values());
   }
 }
