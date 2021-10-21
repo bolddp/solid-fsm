@@ -3,8 +3,8 @@ import { TestContext } from "./TestContext";
 import { StateHandler } from "../src/StateHandler";
 
 export abstract class BaseStateHandler implements StateHandler<TestTrigger, TestContext> {
-  trigger: (trigger: TestTrigger) => Promise<void>;
-  context: TestContext;
+  trigger?: (trigger: TestTrigger) => Promise<void>;
+  context?: TestContext;
 
   protected doEntering(): Promise<void> {
     return Promise.resolve();

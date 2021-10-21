@@ -12,7 +12,7 @@ export class StateConfiguration<TState, TTrigger, TContext extends StateMachineC
   _state: TState;
   _unguardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>> = new Map();
   _guardedTriggerConfigurations: Map<TTrigger, TriggerConfiguration<TState, TTrigger, TContext>[]> = new Map();
-  _handler: StateHandler<TTrigger, TContext>;
+  _handler?: StateHandler<TTrigger, TContext>;
 
   constructor(stateMachine: StateMachine<TState, TTrigger, TContext>, state: TState) {
     this._stateMachine = stateMachine;
@@ -22,7 +22,7 @@ export class StateConfiguration<TState, TTrigger, TContext extends StateMachineC
   private handleUnguarded(trigger: TTrigger): TriggerConfiguration<TState, TTrigger, TContext> {
     // An unguarded trigger cannot also be present with a guard
     if (this._guardedTriggerConfigurations.get(trigger)) {
-      throw new Error(`Trigger ${trigger} is already used with a guard, cannot also be used unguarded`);
+      throw new Error(`Trigger ${trigger} on state ${this._state} is already used with a guard, cannot also be used unguarded`);
     }
     let config = this._unguardedTriggerConfigurations.get(trigger);
     if (!config) {
@@ -35,7 +35,7 @@ export class StateConfiguration<TState, TTrigger, TContext extends StateMachineC
   private handleGuarded(trigger: TTrigger, guard: (context: TContext) => boolean): TriggerConfiguration<TState, TTrigger, TContext> {
     // A guarded trigger cannot also be present without a guard
     if (this._unguardedTriggerConfigurations.get(trigger)) {
-      throw new Error(`Trigger ${trigger} is already used without a guard, cannot also be used guarded`);
+      throw new Error(`Trigger ${trigger} on state ${this._state} is already used without a guard, cannot also be used guarded`);
     }
 
     // Get or create the list of guarded trigger configurations for this trigger

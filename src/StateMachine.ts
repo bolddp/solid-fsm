@@ -13,51 +13,49 @@ import { StateMachineContext } from './StateMachineContext';
  * state machine can be in.
  * */
 export class StateMachine<TState, TTrigger, TContext extends StateMachineContext<TState>> {
-  private currentState: StateConfiguration<TState, TTrigger, TContext>;
+  private currentState?: StateConfiguration<TState, TTrigger, TContext>;
   private sc: Map<TState, StateConfiguration<TState, TTrigger, TContext>> = new Map();
   private isProcessingList: boolean = false;
   private triggerList: TTrigger[] = [];
-  private invalidTriggerListener: (state: TState, trigger: TTrigger) => Promise<void>;
-  private transitionListener: (sourceState: TState, targetState: TState) => Promise<void>
+  private invalidTriggerListener?: (state: TState, trigger: TTrigger) => Promise<void>;
+  private transitionListener?: (sourceState: TState | undefined, targetState?: TState) => Promise<void>
 
   protected _context: TContext;
 
-  _initialState: TState;
+  _initialState?: TState;
 
   constructor(context: TContext) {
     this._context = context;
     this.trigger = this.trigger.bind(this);
   }
 
-  private notifyTransition(sourceState: TState, targetState: TState): Promise<void> {
-    if (!this.transitionListener) {
-      return Promise.resolve();
-    } else {
-      return this.transitionListener(sourceState, targetState);
+  private async notifyTransition(sourceState: TState | undefined, targetState: TState | undefined): Promise<void> {
+    if (this.transitionListener) {
+      await this.transitionListener(sourceState, targetState);
     }
   }
 
-  private enterState(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>): Promise<void> {
+  private async enterState(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>) {
     this.currentState = stateConfiguration;
     this._context.state = stateConfiguration._state;
     if (!stateConfiguration._handler) {
       throw new Error(`No handler for state ${stateConfiguration._state}`);
     }
-    return stateConfiguration._handler.entering(this.trigger, this._context);
+    await stateConfiguration._handler.entering(this.trigger, this._context);
   }
 
-  private processTriggerList(): Promise<void> {
+  private async processTriggerList() {
     const trigger = this.triggerList.shift();
-    if (!trigger) {
+    if (!trigger || !this.currentState) {
       this.isProcessingList = false;
-      return Promise.resolve();
+      return;
     }
 
     // Assume that there is an unguarded trigger configuration that matches the trigger
-    let triggerConfig = this.currentState._unguardedTriggerConfigurations.get(trigger);
+    let triggerConfig = this.currentState?._unguardedTriggerConfigurations.get(trigger);
     if (!triggerConfig) {
       // OK, then let's pick the first guarded configuration whose guard evaluates to true
-      const guardedTriggers = this.currentState._guardedTriggerConfigurations.get(trigger) || [];
+      const guardedTriggers = this.currentState?._guardedTriggerConfigurations.get(trigger) || [];
       triggerConfig = guardedTriggers.find(state => state._guard!(this._context));
     }
     if (!triggerConfig) {
@@ -65,18 +63,19 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
         throw new Error(`Trigger ${trigger} is not valid on state ${this.currentState._state}`);
       } else {
         // There is an invalid trigger handler, let it decide what to do
-        return this.invalidTriggerListener(this.currentState._state, trigger);
+        await this.invalidTriggerListener(this.currentState._state, trigger);
       }
-    }
-    if (triggerConfig._func) {
-      return triggerConfig._func(this._context);
     } else {
-      const exitingState = this.currentState._state;
-      const enteringState = triggerConfig._targetStateConfiguration._state;
-      return this.currentState._handler.exiting()
-        .then(() => this.notifyTransition(exitingState, enteringState))
-        .then(() => this.enterState(triggerConfig._targetStateConfiguration))
-        .then(() => this.processTriggerList());
+      if (triggerConfig._func) {
+        await triggerConfig._func(this._context);
+      } else {
+        const exitingState = this.currentState._state;
+        const enteringState = triggerConfig._targetStateConfiguration?._state;
+        await this.currentState._handler?.exiting();
+        await this.notifyTransition(exitingState, enteringState);
+        await this.enterState(triggerConfig._targetStateConfiguration!);
+        await this.processTriggerList();
+      }
     }
   }
 
@@ -84,13 +83,13 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
    * Fires a trigger on the state machine, causing it to transition to a new state.
    * @param trigger the trigger to fire
    */
-  trigger(trigger: TTrigger): Promise<void> {
+  async trigger(trigger: TTrigger) {
     this.triggerList.push(trigger);
     if (this.isProcessingList) {
-      return Promise.resolve();
+      return;
     }
     this.isProcessingList = true;
-    return this.processTriggerList();
+    await this.processTriggerList();
   }
 
   /**
@@ -108,8 +107,8 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
    * Sets a listener that is notified when a transition occurs in the state machine.
    * @param listener the listener that should be notified when a transition occurs
    */
-  withTransitionListener(listener: (sourceState: TState,
-    targetState: TState) => Promise<void>): StateMachine<TState, TTrigger, TContext> {
+  withTransitionListener(listener: (sourceState?: TState,
+    targetState?: TState) => Promise<void>): StateMachine<TState, TTrigger, TContext> {
     this.transitionListener = listener;
     return this;
   }
@@ -130,7 +129,7 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
    * Starts the state machine by entering either the configured initial state or the state
    * that is configured to be the current state in the state machine's context.
    */
-  start(): Promise<void> {
+  async start() {
     let initialState = this._initialState;
     if (this._context && this._context.state) {
       initialState = this._context.state;
@@ -143,11 +142,11 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
     if (!state) {
       throw new Error('Initial state not properly configured');
     }
-    return this.notifyTransition(undefined, state._state)
-      .then(() => this.enterState(state));
+    await this.notifyTransition(undefined, state._state);
+    await this.enterState(state);
   }
 
-  getCurrentState(): TState {
+  getCurrentState(): TState | undefined {
     if (!this.currentState) {
       return undefined;
     }

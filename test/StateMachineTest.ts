@@ -1,8 +1,15 @@
-import { expect } from 'chai';
 import { TestStateMachine } from './TestStateMachine';
 import { TestState } from './TestState';
 import { TestTrigger } from './TestTrigger';
 import { TestStateHandler } from "./TestStateHandler";
+
+import { expect, use as chaiUse } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import { StateMachine } from '../src/StateMachine';
+import { TestContext } from './TestContext';
+
+// @ts-ignore
+chaiUse(chaiAsPromised);
 
 describe('StateMachine', () => {
   it('should flow through all states', async () => {
@@ -81,8 +88,8 @@ describe('StateMachine', () => {
   });
 
   it('should use invalid trigger listener', async () => {
-    let invalidState: TestState;
-    let invalidTrigger: TestTrigger;
+    let invalidState: TestState | undefined;
+    let invalidTrigger: TestTrigger | undefined;
     const sut = new TestStateMachine(sm => {
       sm
         .withInvalidTriggerListener((state, trigger) => {
@@ -107,8 +114,8 @@ describe('StateMachine', () => {
   });
 
   it('should use transition listener', async () => {
-    let sourceState: TestState;
-    let targetState: TestState;
+    let sourceState: TestState | undefined;
+    let targetState: TestState | undefined;
     const sut = new TestStateMachine(sm => {
       sm
         .withTransitionListener((source, target) => {
@@ -216,4 +223,84 @@ describe('StateMachine', () => {
     expect(logs[5]).to.equal('entering 3');
   });
 
+  it('should handle state without guards', async () => {
+    const sut = new TestStateMachine(sm => {
+      sm.state(TestState.State1)
+        .isInitialState()
+        .handledBy(new TestStateHandler(1, TestTrigger.Success));
+    });
+    await expect(sut.start()).to.be.rejectedWith('Trigger Success is not valid on state State1');
+  });
+
+  it('should handle state without handler', async () => {
+    // Create first state machine instance and run it from state1 to state2
+    const sut1 = new TestStateMachine(sm => {
+      sm.state(TestState.State1)
+        .isInitialState()
+        .on(TestTrigger.Success).goesTo(TestState.State2);
+    });
+    await expect(sut1.start()).to.be.rejectedWith('No handler for state State1');
+  });
+
+  it('should throw if trigger has first target state and then executing code', async () => {
+    expect(() => {
+      const sut = new TestStateMachine(sm => {
+        sm.state(TestState.State1)
+          .isInitialState()
+          .handledBy(new TestStateHandler(1))
+          .on(TestTrigger.ExecuteCode).goesTo(TestState.Failed)
+          .on(TestTrigger.ExecuteCode).execute(context => {
+            return Promise.resolve();
+          });
+      });
+    }).to.throw('A trigger cannot have both a target state and code that should be executed');
+  });
+
+  it('should throw if trigger has first executing code and then target state', async () => {
+    expect(() => {
+      const sut = new TestStateMachine(sm => {
+        sm.state(TestState.State1)
+          .isInitialState()
+          .handledBy(new TestStateHandler(1))
+          .on(TestTrigger.ExecuteCode).execute(context => {
+            return Promise.resolve();
+          })
+          .on(TestTrigger.ExecuteCode).goesTo(TestState.Failed)
+      });
+    }).to.throw('A trigger cannot have both a target state and code that should be executed');
+  });
+
+  it('should throw if state has first guarded target, then unguarded', async () => {
+    expect(() => {
+      const sut = new TestStateMachine(sm => {
+        sm.state(TestState.State1)
+          .isInitialState()
+          .handledBy(new TestStateHandler(1))
+          .on(TestTrigger.Success, context => !context.guard).goesTo(TestState.State2)
+          .on(TestTrigger.Success).goesTo(TestState.State3);
+      });
+    }).to.throw('Trigger Success on state State1 is already used with a guard, cannot also be used unguarded');
+  });
+
+  it('should throw if state has first unguarded target, then guarded', async () => {
+    expect(() => {
+      const sut = new TestStateMachine(sm => {
+        sm.state(TestState.State1)
+          .isInitialState()
+          .handledBy(new TestStateHandler(1))
+          .on(TestTrigger.Success).goesTo(TestState.State3)
+          .on(TestTrigger.Success, context => !context.guard).goesTo(TestState.State2);
+      });
+    }).to.throw('Trigger Success on state State1 is already used without a guard, cannot also be used guarded');
+  });
+
+  it('should throw on no initial state', async () => {
+    const sut = new TestStateMachine(sm => {
+      sm.state(TestState.State1)
+        .handledBy(new TestStateHandler(1))
+        .on(TestTrigger.Success).goesTo(TestState.State3);
+    });
+
+    await expect(sut.start()).to.be.rejectedWith('Cannot determine initial state');
+  });
 });

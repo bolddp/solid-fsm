@@ -8,5 +8,5 @@
  * context is the natural place for them to share information.
  */
 export interface StateMachineContext<TState> {
-  state: TState;
+  state?: TState;
 }

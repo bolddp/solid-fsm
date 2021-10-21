@@ -11,9 +11,9 @@ import { StateMachineContext } from "./StateMachineContext";
  */
 export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachineContext<TState>> {
   private _stateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
-  _targetStateConfiguration: StateConfiguration<TState, TTrigger, TContext>;
+  _targetStateConfiguration?: StateConfiguration<TState, TTrigger, TContext>;
   _guard?: (context: TContext) => boolean;
-  _func: (context: TContext) => Promise<void>;
+  _func?: (context: TContext) => Promise<void>;
 
   constructor(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>,
     guard?: (context: TContext) => boolean) {

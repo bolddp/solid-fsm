@@ -11,13 +11,13 @@ export class TestStateHandler extends BaseStateHandler {
     this.enterTrigger = enterTrigger;
   }
 
-  doEntering(): Promise<void> {
-    this.context.logs.push(`entering ${this.index}`);
-    return this.enterTrigger ? this.trigger(TestTrigger.Success) : Promise.resolve();
+  async doEntering(): Promise<void> {
+    this.context?.logs.push(`entering ${this.index}`);
+    await (this.enterTrigger ? this.trigger?.(TestTrigger.Success) : Promise.resolve());
   }
 
   doExiting(): Promise<void> {
-    this.context.logs.push(`exiting ${this.index}`);
+    this.context?.logs.push(`exiting ${this.index}`);
     return Promise.resolve();
   }
 }
