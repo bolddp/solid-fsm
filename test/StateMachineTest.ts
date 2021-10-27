@@ -32,12 +32,13 @@ describe('StateMachine', () => {
 
     expect(sut.getCurrentState()).to.equal(TestState.State3);
     const logs = sut.context().logs;
-    expect(logs.length).to.equal(5);
-    expect(logs[0]).to.equal('entering 1');
-    expect(logs[1]).to.equal('exiting 1');
-    expect(logs[2]).to.equal('entering 2');
-    expect(logs[3]).to.equal('exiting 2');
-    expect(logs[4]).to.equal('entering 3');
+    expect(logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 2',
+      'exiting 2',
+      'entering 3',
+    ]);
   });
 
   /**
@@ -64,10 +65,11 @@ describe('StateMachine', () => {
 
     expect(sut.getCurrentState()).to.equal(TestState.State3);
     const logs = sut.context().logs;
-    expect(logs.length).to.equal(3);
-    expect(logs[0]).to.equal('entering 1');
-    expect(logs[1]).to.equal('exiting 1');
-    expect(logs[2]).to.equal('entering 3');
+    expect(logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 3',
+    ]);
   });
 
   it('should throw error on unexpected state', async () => {
@@ -186,10 +188,11 @@ describe('StateMachine', () => {
 
     expect(sut1.getCurrentState()).to.equal(TestState.State2);
     let logs = sut1.context().logs;
-    expect(logs.length).to.equal(3);
-    expect(logs[0]).to.equal('entering 1');
-    expect(logs[1]).to.equal('exiting 1');
-    expect(logs[2]).to.equal('entering 2');
+    expect(logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 2'
+    ]);
 
     // Now create a new instance and give it the context of the first state machine
     const contextJson = JSON.stringify(sut1.context());
@@ -213,14 +216,13 @@ describe('StateMachine', () => {
 
     expect(sut2.getCurrentState()).to.equal(TestState.State3);
     logs = sut2.context().logs;
-    expect(logs.length).to.equal(6);
-    expect(logs[0]).to.equal('entering 1');
-    expect(logs[1]).to.equal('exiting 1');
-    expect(logs[2]).to.equal('entering 2');
-    // State 2 is entered by both state machine instances
-    expect(logs[3]).to.equal('entering 2');
-    expect(logs[4]).to.equal('exiting 2');
-    expect(logs[5]).to.equal('entering 3');
+    expect(logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 2',
+      'exiting 2',
+      'entering 3'
+    ]);
   });
 
   it('should handle state without guards', async () => {

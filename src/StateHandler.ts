@@ -14,12 +14,12 @@ export interface StateHandler<TTrigger, TContext> {
    * @param context the state machine context that is used to share data between states. One
    * instance of the context exists for each state machine.
    */
-  entering(trigger: (trigger: TTrigger) => Promise<void>, context: TContext): Promise<void>;
+  entering?(trigger: (trigger: TTrigger) => Promise<void>, context: TContext): Promise<void>;
 
   /**
    * Called when the state is exited because the state machine is transitioning to a new state.
    * Code in this method can be used to clean up resources that were allocated when entering
    * the state etc.
    */
-  exiting(): Promise<void>;
+  exiting?(context: TContext): Promise<void>;
 }
