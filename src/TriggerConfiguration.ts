@@ -14,11 +14,31 @@ export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachin
   _targetStateConfiguration?: StateConfiguration<TState, TTrigger, TContext>;
   _guard?: (context: TContext) => boolean;
   _func?: (context: TContext) => Promise<void>;
+  _isIgnored: boolean;
 
   constructor(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>,
     guard?: (context: TContext) => boolean) {
     this._stateConfiguration = stateConfiguration;
     this._guard = guard;
+    this._isIgnored = false;
+  }
+
+  private throwOnFunc(msg: string) {
+    if (this._func) {
+      throw new Error(msg);
+    }
+  }
+
+  private throwOnIgnore(msg: string) {
+    if (this._isIgnored) {
+      throw new Error(msg);
+    }
+  }
+
+  private throwOnTarget(msg: string) {
+    if (this._targetStateConfiguration) {
+      throw new Error(msg);
+    }
   }
 
   /**
@@ -26,9 +46,8 @@ export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachin
    * @param state the state that this trigger configuration should use as target
    */
   goesTo(state: TState): StateConfiguration<TState, TTrigger, TContext> {
-    if (this._func) {
-      throw new Error('A trigger cannot have both a target state and code that should be executed');
-    }
+    this.throwOnFunc('A trigger cannot both have a target state and code that should be executed');
+    this.throwOnIgnore('A trigger cannot both have a target state and be ignored');
     this._targetStateConfiguration = this._stateConfiguration._stateMachine.state(state);
     return this._stateConfiguration;
   }
@@ -39,10 +58,16 @@ export class TriggerConfiguration<TState, TTrigger, TContext extends StateMachin
    * @param func the function that should be executed when a trigger is fired on the current configured state
    */
   execute(func: (context: TContext) => Promise<void>): StateConfiguration<TState, TTrigger, TContext> {
-    if (this._targetStateConfiguration) {
-      throw new Error('A trigger cannot have both a target state and code that should be executed');
-    }
+    this.throwOnTarget('A trigger cannot both have a target state and code that should be executed');
+    this.throwOnIgnore('A trigger cannot both be ignored and have code that should be executed');
     this._func = func;
+    return this._stateConfiguration;
+  }
+
+  ignore(): StateConfiguration<TState, TTrigger, TContext> {
+    this.throwOnFunc('A trigger cannot both be ignored and have code that should be executed');
+    this.throwOnTarget('A trigger cannot both be ignored and have a target state');
+    this._isIgnored = true;
     return this._stateConfiguration;
   }
 }

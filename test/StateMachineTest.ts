@@ -5,8 +5,6 @@ import { TestStateHandler } from "./TestStateHandler";
 
 import { expect, use as chaiUse } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import { StateMachine } from '../src/StateMachine';
-import { TestContext } from './TestContext';
 
 // @ts-ignore
 chaiUse(chaiAsPromised);
@@ -255,7 +253,7 @@ describe('StateMachine', () => {
             return Promise.resolve();
           });
       });
-    }).to.throw('A trigger cannot have both a target state and code that should be executed');
+    }).to.throw('A trigger cannot both have a target state and code that should be executed');
   });
 
   it('should throw if trigger has first executing code and then target state', async () => {
@@ -269,7 +267,21 @@ describe('StateMachine', () => {
           })
           .on(TestTrigger.ExecuteCode).goesTo(TestState.Failed)
       });
-    }).to.throw('A trigger cannot have both a target state and code that should be executed');
+    }).to.throw('A trigger cannot both have a target state and code that should be executed');
+  });
+
+  it('should throw if trigger has first executing code and then ignore', async () => {
+    expect(() => {
+      const sut = new TestStateMachine(sm => {
+        sm.state(TestState.State1)
+          .isInitialState()
+          .handledBy(new TestStateHandler(1))
+          .on(TestTrigger.ExecuteCode).execute(context => {
+            return Promise.resolve();
+          })
+          .on(TestTrigger.ExecuteCode).ignore()
+      });
+    }).to.throw('A trigger cannot both be ignored and have code that should be executed');
   });
 
   it('should throw if state has first guarded target, then unguarded', async () => {
@@ -305,4 +317,91 @@ describe('StateMachine', () => {
 
     await expect(sut.start()).to.be.rejectedWith('Cannot determine initial state');
   });
+
+  it('should use default triggers', async () => {
+    const sut = new TestStateMachine(sm => {
+      sm.default()
+        .on(TestTrigger.Reset).goesTo(TestState.State1);
+
+      sm.state(TestState.State1)
+        .isInitialState()
+        .handledBy(new TestStateHandler(1))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Success).goesTo(TestState.State2);
+
+      sm.state(TestState.State2)
+        .handledBy(new TestStateHandler(2))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Success).goesTo(TestState.State3);
+
+      sm.state(TestState.State3).handledBy(new TestStateHandler(3));
+
+    });
+    await sut.start();
+    await sut.trigger(TestTrigger.Success);
+    await sut.trigger(TestTrigger.Reset);
+
+    expect(sut.context().logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 2',
+      'exiting 2',
+      'entering 1'
+    ])
+  });
+
+  it('should prioritize state trigger over default trigger', async () => {
+    const sut = new TestStateMachine(sm => {
+      sm.default()
+        .on(TestTrigger.Reset).goesTo(TestState.State1);
+
+      sm.state(TestState.State1)
+        .isInitialState()
+        .handledBy(new TestStateHandler(1))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Success).goesTo(TestState.State2);
+
+      sm.state(TestState.State2)
+        .handledBy(new TestStateHandler(2))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Reset).goesTo(TestState.State3);
+
+      sm.state(TestState.State3).handledBy(new TestStateHandler(3));
+
+    });
+    await sut.start();
+    await sut.trigger(TestTrigger.Success);
+    await sut.trigger(TestTrigger.Reset);
+
+    expect(sut.context().logs).to.eql([
+      'entering 1',
+      'exiting 1',
+      'entering 2',
+      'exiting 2',
+      'entering 3'
+    ])
+  });
+
+
+  it('should ignore trigger', async () => {
+    const sut = new TestStateMachine(sm => {
+      sm.state(TestState.State1)
+        .isInitialState()
+        .handledBy(new TestStateHandler(1))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Success).goesTo(TestState.State2)
+        .on(TestTrigger.Reset).ignore();
+
+      sm.state(TestState.State2)
+        .handledBy(new TestStateHandler(2))
+        .on(TestTrigger.Failure).goesTo(TestState.Failed)
+        .on(TestTrigger.Reset).goesTo(TestState.State3);
+
+      sm.state(TestState.State3).handledBy(new TestStateHandler(3));
+
+    });
+    await sut.start();
+    await sut.trigger(TestTrigger.Reset);
+  });
+
 });

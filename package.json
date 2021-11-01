@@ -1,6 +1,6 @@
 {
   "name": "solid-fsm",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Finite State Machine with a simple fluent API",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -8,8 +8,9 @@
     "test": "_mocha -r ts-node/register --recursive test/**/*Test.ts",
     "coverage": "nyc mocha -r ts-node/register -r source-map-support/register --recursive test/**/*Test.ts",
     "clean": "node ./node_modules/rimraf/bin.js ./lib",
-    "npm:build": "node ./node_modules/typescript/bin/tsc --sourcemap false",
-    "npm:publish": "npm run clean && npm run npm:build && npm publish"
+    "prebuild": "npm run clean",
+    "build": "node ./node_modules/typescript/bin/tsc --sourcemap false",
+    "npm:publish": "npm run build && npm publish"
   },
   "repository": {
     "type": "git",

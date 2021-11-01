@@ -13,6 +13,7 @@ import { StateMachineContext } from './StateMachineContext';
  * state machine can be in.
  * */
 export class StateMachine<TState, TTrigger, TContext extends StateMachineContext<TState>> {
+  private defaultState?: StateConfiguration<TState, TTrigger, TContext>;
   private currentState?: StateConfiguration<TState, TTrigger, TContext>;
   private stateConfigurationMap: Map<TState, StateConfiguration<TState, TTrigger, TContext>> = new Map();
   private isProcessingList: boolean = false;
@@ -46,6 +47,16 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
     }
   }
 
+  private matchTrigger(stateConfiguration: StateConfiguration<TState, TTrigger, TContext> | undefined, trigger: TTrigger) {
+    let triggerConfig = stateConfiguration?._unguardedTriggerConfigurations.get(trigger);
+    if (!triggerConfig) {
+      // OK, then let's pick the first guarded configuration whose guard evaluates to true
+      const guardedTriggers = stateConfiguration?._guardedTriggerConfigurations.get(trigger) || [];
+      triggerConfig = guardedTriggers.find(state => state._guard!(this._context));
+    }
+    return triggerConfig;
+  }
+
   private async processTriggerList() {
     const trigger = this.triggerList.shift();
     if (!trigger || !this.currentState) {
@@ -53,12 +64,11 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
       return;
     }
 
-    // Assume that there is an unguarded trigger configuration that matches the trigger
-    let triggerConfig = this.currentState?._unguardedTriggerConfigurations.get(trigger);
+    // Can the current state handle the trigger?
+    let triggerConfig = this.matchTrigger(this.currentState, trigger);
     if (!triggerConfig) {
-      // OK, then let's pick the first guarded configuration whose guard evaluates to true
-      const guardedTriggers = this.currentState?._guardedTriggerConfigurations.get(trigger) || [];
-      triggerConfig = guardedTriggers.find(state => state._guard!(this._context));
+      // OK, can the default configuration handle the trigger?
+      triggerConfig = this.matchTrigger(this.defaultState, trigger);
     }
     if (!triggerConfig) {
       if (!this.invalidTriggerListener) {
@@ -66,18 +76,21 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
       } else {
         // There is an invalid trigger handler, let it decide what to do
         await this.invalidTriggerListener(this.currentState._state, trigger);
+        return;
       }
+    }
+    if (triggerConfig._isIgnored) {
+      return;
+    }
+    if (triggerConfig._func) {
+      await triggerConfig._func(this._context);
     } else {
-      if (triggerConfig._func) {
-        await triggerConfig._func(this._context);
-      } else {
-        const exitingState = this.currentState._state;
-        const enteringState = triggerConfig._targetStateConfiguration?._state;
-        await this.currentState._handler?.exiting?.(this._context);
-        await this.notifyTransition(exitingState, enteringState);
-        await this.enterState(triggerConfig._targetStateConfiguration!);
-        await this.processTriggerList();
-      }
+      const exitingState = this.currentState._state;
+      const enteringState = triggerConfig._targetStateConfiguration?._state;
+      await this.currentState._handler?.exiting?.(this._context);
+      await this.notifyTransition(exitingState, enteringState);
+      await this.enterState(triggerConfig._targetStateConfiguration!);
+      await this.processTriggerList();
     }
   }
 
@@ -125,6 +138,17 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
       this.stateConfigurationMap.set(state, config);
     }
     return config;
+  }
+
+  /**
+   * Gets the default state configuration, whose triggers are applied if no trigger configuration
+   * on the current state matches the trigger.
+   */
+  default(): StateConfiguration<TState, TTrigger, TContext> {
+    if (!this.defaultState) {
+      this.defaultState = new StateConfiguration(this, <any>undefined);
+    }
+    return this.defaultState;
   }
 
   /**
