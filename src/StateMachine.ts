@@ -70,22 +70,21 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
       } else {
         // There is an invalid trigger handler, let it decide what to do
         await this.invalidTriggerListener(this.currentState._state, trigger);
-        return;
+      }
+    } else {
+      if (!triggerConfig._isIgnored) {
+        if (triggerConfig._func) {
+          await triggerConfig._func(this._context);
+        } else {
+          const exitingState = this.currentState._state;
+          const enteringState = triggerConfig._targetStateConfiguration?._state;
+          await this.currentState._handler?.exiting?.(this._context);
+          await this.transitionListener?.(trigger, exitingState, enteringState);
+          await this.enterState(triggerConfig._targetStateConfiguration!);
+        }
       }
     }
-    if (triggerConfig._isIgnored) {
-      return;
-    }
-    if (triggerConfig._func) {
-      await triggerConfig._func(this._context);
-    } else {
-      const exitingState = this.currentState._state;
-      const enteringState = triggerConfig._targetStateConfiguration?._state;
-      await this.currentState._handler?.exiting?.(this._context);
-      await this.transitionListener?.(trigger, exitingState, enteringState);
-      await this.enterState(triggerConfig._targetStateConfiguration!);
-      await this.processTriggerList();
-    }
+    await this.processTriggerList();
   }
 
   /**

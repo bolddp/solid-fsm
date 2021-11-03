@@ -108,9 +108,11 @@ describe('StateMachine', () => {
     });
     await sut.start();
     await sut.trigger(TestTrigger.UnexpectedTrigger);
+    await sut.trigger(TestTrigger.Success);
 
     expect(invalidState).to.equal(TestState.State1);
     expect(invalidTrigger).to.equal(TestTrigger.UnexpectedTrigger);
+    expect(sut.getCurrentState()).to.equal(TestState.State2);
   });
 
   it('should use transition listener', async () => {
@@ -404,7 +406,12 @@ describe('StateMachine', () => {
 
     });
     await sut.start();
+
     await sut.trigger(TestTrigger.Reset);
+    expect(sut.getCurrentState()).to.equal(TestState.State1);
+
+    await sut.trigger(TestTrigger.Success);
+    expect(sut.getCurrentState()).to.equal(TestState.State2);
   });
 
 });
