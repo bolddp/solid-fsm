@@ -18,8 +18,8 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
   private stateConfigurationMap: Map<TState, StateConfiguration<TState, TTrigger, TContext>> = new Map();
   private isProcessingList: boolean = false;
   private triggerList: TTrigger[] = [];
-  private invalidTriggerListener?: (state: TState, trigger: TTrigger) => Promise<void>;
-  private transitionListener?: (sourceState: TState | undefined, targetState?: TState) => Promise<void>
+  private invalidTriggerListener?: InvalidTriggerListener<TState, TTrigger>;
+  private transitionListener?: TransitionListener<TState, TTrigger>;
 
   protected _context: TContext;
 
@@ -28,12 +28,6 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
   constructor(context: TContext) {
     this._context = context;
     this.trigger = this.trigger.bind(this);
-  }
-
-  private async notifyTransition(sourceState: TState | undefined, targetState: TState | undefined): Promise<void> {
-    if (this.transitionListener) {
-      await this.transitionListener(sourceState, targetState);
-    }
   }
 
   private async enterState(stateConfiguration: StateConfiguration<TState, TTrigger, TContext>, skipEntering?: boolean) {
@@ -88,7 +82,7 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
       const exitingState = this.currentState._state;
       const enteringState = triggerConfig._targetStateConfiguration?._state;
       await this.currentState._handler?.exiting?.(this._context);
-      await this.notifyTransition(exitingState, enteringState);
+      await this.transitionListener?.(trigger, exitingState, enteringState);
       await this.enterState(triggerConfig._targetStateConfiguration!);
       await this.processTriggerList();
     }
@@ -112,8 +106,7 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
    * machine throws an error when an invalid state is encountered.
    * @param listener the listener that should be notified when an invalid trigger is fired
    */
-  withInvalidTriggerListener(listener: (state: TState,
-    trigger: TTrigger) => Promise<void>): StateMachine<TState, TTrigger, TContext> {
+  withInvalidTriggerListener(listener: InvalidTriggerListener<TState, TTrigger>): StateMachine<TState, TTrigger, TContext> {
     this.invalidTriggerListener = listener;
     return this;
   }
@@ -122,8 +115,7 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
    * Sets a listener that is notified when a transition occurs in the state machine.
    * @param listener the listener that should be notified when a transition occurs
    */
-  withTransitionListener(listener: (sourceState?: TState,
-    targetState?: TState) => Promise<void>): StateMachine<TState, TTrigger, TContext> {
+  withTransitionListener(listener: TransitionListener<TState, TTrigger>): StateMachine<TState, TTrigger, TContext> {
     this.transitionListener = listener;
     return this;
   }
@@ -195,3 +187,9 @@ export class StateMachine<TState, TTrigger, TContext extends StateMachineContext
     }
   }
 }
+
+export type TransitionListener<TState, TTrigger> = (trigger: TTrigger,
+  exitingState: TState | undefined, enteringState: TState | undefined) => Promise<void>;
+
+export type InvalidTriggerListener<TState, TTrigger> = (state: TState,
+  trigger: TTrigger) => Promise<void>;

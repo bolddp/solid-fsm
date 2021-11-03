@@ -1,6 +1,6 @@
 {
   "name": "solid-fsm",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Finite State Machine with a simple fluent API",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

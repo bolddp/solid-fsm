@@ -114,11 +114,13 @@ describe('StateMachine', () => {
   });
 
   it('should use transition listener', async () => {
+    let transitionTrigger: TestTrigger | undefined;
     let sourceState: TestState | undefined;
     let targetState: TestState | undefined;
     const sut = new TestStateMachine(sm => {
       sm
-        .withTransitionListener((source, target) => {
+        .withTransitionListener((trigger, source, target) => {
+          transitionTrigger = trigger;
           sourceState = source;
           targetState = target;
           return Promise.resolve();
@@ -135,6 +137,7 @@ describe('StateMachine', () => {
     await sut.start();
     await sut.trigger(TestTrigger.Success);
 
+    expect(transitionTrigger).to.equal(TestTrigger.Success);
     expect(sourceState).to.equal(TestState.State1);
     expect(targetState).to.equal(TestState.State2);
   });
